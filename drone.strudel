@@ -1,0 +1,261 @@
+// DRONE.STRUDEL - Generative Ambient Drone
+// Converted from Tone.js drone.js
+// Features: FM drone, bells, static noise, choir-like textures
+// 
+// === AUDIO LAYERS ===
+// 1. Drone: Deep FM synthesis with microtonal variations
+// 2. Bells: Higher FM synthesis with harmonic distortion  
+// 3. Static: Noise with euclidean rhythms and modulated filters
+// 4. Choir: Formant-like vocal textures
+//
+// Use setcps() to control tempo (cycles per second)
+// Lower values = slower, more ambient; Higher = more rhythmic
+
+// === CONFIGURATION ===
+setcps(0.08); // Very slow tempo for drone (~4.8 BPM)
+
+// === MAIN COMPOSITION ===
+stack(
+  
+  // ============================================
+  // LAYER 1: DRONE - Deep FM synthesis
+  // Long sustained tones with rich harmonics
+  // ============================================
+  n("[0,4,7,11,14]") // Extended chord voicing (scale degrees)
+  .scale("<A#1:minor D#1:major F1:dorian C1:mixolydian G1:phrygian D1:lydian>/8")
+  .s("sine")
+  .fm(perlin.range(0.5, 2).slow(16)) // Subtle FM modulation
+  .fmh(perlin.range(0.3, 0.8).slow(24)) // Harmonicity drift
+  .fmdecay(perlin.range(3, 7).slow(12))
+  .fmsustain(0.85)
+  .attack(perlin.range(3, 7).slow(20))
+  .decay(perlin.range(1, 3).slow(15))
+  .sustain(perlin.range(0.8, 0.95).slow(18))
+  .release(perlin.range(5, 11).slow(22))
+  .lpf(perlin.range(200, 1200).slow(32))
+  .lpq(perlin.range(0.5, 2).slow(28))
+  .room(perlin.range(0.4, 0.8).slow(24))
+  .rsize(perlin.range(4, 12).slow(30))
+  .delay(perlin.range(0.3, 0.6).slow(20))
+  .delaytime(perlin.range(0.125, 0.5).slow(16))
+  .delayfeedback(perlin.range(0.2, 0.45).slow(18))
+  .gain(0.35)
+  .slow(8)
+  .jux(x => x.detune(5).delay(0.4)) // Stereo widening (5 cents)
+  ,
+  
+  // Second drone voice - complementary harmonics
+  n("[0,5,9,12]") // Different voicing
+  .scale("<C1:major G1:minor D1:dorian A1:lydian>/12")
+  .s("triangle")
+  .fm(perlin.range(1, 3).slow(20))
+  .fmh(perlin.range(0.5, 1.5).slow(18))
+  .fmdecay(perlin.range(4, 8).slow(14))
+  .fmsustain(0.9)
+  .attack(perlin.range(4, 8).slow(22))
+  .release(perlin.range(6, 12).slow(20))
+  .lpf(perlin.range(300, 1500).slow(26))
+  .room(0.6)
+  .rsize(8)
+  .delay(0.4)
+  .delaytime(0.25)
+  .delayfeedback(0.35)
+  .gain(0.25)
+  .slow(10)
+  .off(1/4, x => x.add(7).gain(0.15)) // Fifth harmony layer (+7 scale degrees)
+  ,
+  
+  // ============================================
+  // LAYER 2: BELLS - Ethereal FM bell tones
+  // Sparse, crystalline harmonics with distortion
+  // ============================================
+  n("[0,4,7]") // Triad
+  .scale("<A#3:minor D#3:major F3:mixolydian C3:dorian>/8")
+  .s("sine")
+  .fm(perlin.range(4, 12).slow(12)) // Higher FM for bell character
+  .fmh(perlin.range(1.5, 3.5).slow(10)) // Bell-like harmonicity
+  .fmdecay(perlin.range(0.1, 0.3).slow(8))
+  .fmsustain(perlin.range(0.4, 0.8).slow(14))
+  .attack(perlin.range(0.012, 0.03).slow(6)) // Quick attack for bell strike
+  .decay(perlin.range(0.2, 0.5).slow(10))
+  .sustain(perlin.range(0.4, 0.7).slow(12))
+  .release(perlin.range(2, 5).slow(16))
+  .lpf(perlin.range(1000, 8000).slow(14))
+  .hpf(perlin.range(200, 800).slow(18))
+  .shape(perlin.range(0.1, 0.4).slow(20)) // Subtle distortion
+  .room(perlin.range(0.5, 0.9).slow(16))
+  .rsize(perlin.range(6, 14).slow(22))
+  .delay(perlin.range(0.6, 0.85).slow(12))
+  .delaytime("<0.25 0.125 0.1875 0.375>/4")
+  .delayfeedback(perlin.range(0.5, 0.8).slow(14))
+  .gain(0.2)
+  .slow(6)
+  .sometimes(x => x.add(12)) // Occasional octave (+12 scale degrees)
+  .rarely(x => x.speed(0.5)) // Rare pitch shift
+  .jux(x => x.rev().delay(0.6)) // Stereo reverse delay
+  ,
+  
+  // Bell harmonics layer
+  n("[12,16,19]") // Higher voicing (octave + extensions)
+  .scale("<G3:minor E3:major A3:dorian>/6")
+  .s("triangle")
+  .fm(perlin.range(6, 16).slow(14))
+  .fmh(perlin.range(2, 4).slow(12))
+  .attack(0.015)
+  .decay(0.3)
+  .sustain(0.5)
+  .release(3)
+  .lpf(perlin.range(2000, 12000).slow(18))
+  .shape(0.25)
+  .room(0.7)
+  .delay(0.7)
+  .delaytime(0.1875)
+  .delayfeedback(0.6)
+  .gain(0.12)
+  .slow(7)
+  .mask("<x x ~ x ~ x ~ ~>/8") // Sparse triggering
+  ,
+  
+  // ============================================
+  // LAYER 3: STATIC - Rhythmic noise textures
+  // Euclidean rhythms with modulated filters
+  // ============================================
+  
+  // Main static layer - euclidean patterns
+  s("<white pink brown>/4")
+  .struct("t(5,16)")
+  .lpf(perlin.range(1500, 8000).slow(8))
+  .hpf(perlin.range(500, 3000).slow(12))
+  .lpq(perlin.range(2, 12).slow(6))
+  .attack(perlin.range(0.004, 0.02).slow(4))
+  .decay(perlin.range(0.05, 0.15).slow(6))
+  .sustain(0)
+  .release(perlin.range(0.05, 0.12).slow(5))
+  .shape(perlin.range(0.1, 0.5).slow(10))
+  .room(perlin.range(0.2, 0.5).slow(14))
+  .delay(perlin.range(0.2, 0.5).slow(8))
+  .delaytime("<0.0625 0.125 0.1875 0.25>/8")
+  .delayfeedback(perlin.range(0.3, 0.6).slow(10))
+  .pan(perlin.range(-0.4, 0.4).slow(4))
+  .gain(0.08)
+  .fast(2)
+  .sometimes(x => x.ply(2)) // Occasional double hits
+  ,
+  
+  // Secondary static layer - 12-step polyrhythm
+  s("<pink brown>/3")
+  .struct("t(4,12)")
+  .lpf(perlin.range(2000, 10000).slow(10))
+  .hpf(perlin.range(800, 4000).slow(14))
+  .attack(0.006)
+  .decay(0.1)
+  .sustain(0)
+  .shape(perlin.range(0.2, 0.6).slow(8))
+  .room(0.35)
+  .pan(perlin.range(-0.6, 0.6).slow(6))
+  .gain(0.06)
+  .off(1/16, x => x.gain(0.03).hpf(6000)) // Offset high layer
+  ,
+  
+  // Tertiary static layer - 7-step odd meter
+  s("brown")
+  .struct("t(3,7)")
+  .lpf(perlin.range(800, 4000).slow(16))
+  .hpf(perlin.range(400, 1500).slow(20))
+  .attack(0.008)
+  .decay(0.08)
+  .sustain(0)
+  .room(0.4)
+  .pan(sine.range(-0.3, 0.3).slow(8))
+  .gain(0.05)
+  .slow(1.5)
+  ,
+  
+  // Crackle texture layer
+  s("crackle*2")
+  .density(perlin.range(0.02, 0.15).slow(20))
+  .room(0.5)
+  .gain(0.04)
+  .mask("<x ~ ~ x ~ ~ ~ ~>/16") // Very sparse
+  ,
+  
+  // ============================================
+  // LAYER 4: CHOIR - Formant-like vocal textures
+  // PWM-style oscillators with vowel-like filtering
+  // ============================================
+  
+  // Main choir voice - "ah" vowel character
+  n("[0,4,7,12]") // Root + chord
+  .scale("<C2:minor F2:dorian G2:phrygian D2:mixolydian>/12")
+  .s("sawtooth")
+  .lpf(perlin.range(600, 1200).slow(16)) // Formant 1 region
+  .lpq(perlin.range(6, 12).slow(14))
+  .hpf(perlin.range(100, 300).slow(20))
+  .attack(perlin.range(0.35, 0.8).slow(12))
+  .decay(perlin.range(0.4, 0.7).slow(14))
+  .sustain(perlin.range(0.6, 0.85).slow(16))
+  .release(perlin.range(0.9, 1.7).slow(18))
+  .vib(perlin.range(4, 7).slow(10)) // Vibrato rate
+  .vibmod(perlin.range(0.1, 0.3).slow(12)) // Vibrato depth
+  .room(perlin.range(0.6, 0.9).slow(20))
+  .rsize(perlin.range(6, 12).slow(24))
+  .delay(0.4)
+  .delayfeedback(0.3)
+  .gain(0.18)
+  .slow(10)
+  .jux(x => x.detune(3).lpf(800)) // Stereo with slight detune (3 cents)
+  ,
+  
+  // Second choir voice - "oo" vowel character  
+  n("[0,3,7]") // Minor triad
+  .scale("<A2:minor E2:dorian B2:phrygian>/10")
+  .s("square")
+  .lpf(perlin.range(300, 600).slow(18)) // Lower formant for "oo"
+  .lpq(perlin.range(8, 14).slow(16))
+  .hpf(150)
+  .attack(perlin.range(0.4, 0.9).slow(14))
+  .sustain(0.7)
+  .release(perlin.range(1, 2).slow(16))
+  .vib(5)
+  .vibmod(0.15)
+  .room(0.7)
+  .rsize(8)
+  .gain(0.12)
+  .slow(12)
+  .off(1/8, x => x.add(5).gain(0.06)) // Harmony layer (+5 scale degrees)
+  ,
+  
+  // Breath/noise layer for choir
+  s("white")
+  .lpf(perlin.range(3000, 8000).slow(12))
+  .hpf(perlin.range(2000, 5000).slow(16))
+  .attack(perlin.range(0.1, 0.3).slow(8))
+  .decay(perlin.range(0.3, 0.6).slow(10))
+  .sustain(perlin.range(0.1, 0.3).slow(12))
+  .release(perlin.range(0.4, 0.8).slow(14))
+  .room(0.5)
+  .gain(0.03)
+  .slow(8)
+  .mask("<~ x ~ ~ x ~ ~ x>/16") // Sparse breath hits
+  
+) // end stack
+
+// === GLOBAL EFFECTS ===
+// Apply master processing to the entire stack
+.postgain(0.7) // Master volume
+.compressor("-18:3:10:0.006:0.25") // Gentle compression
+
+// === PERFORMANCE NOTES ===
+// - Adjust setcps() for tempo: 0.05 = very slow, 0.1 = slow, 0.2 = moderate
+// - Comment out layers with // to reduce CPU or focus on specific textures
+// - Each layer can be isolated for solo listening
+// - The perlin functions create smooth random modulation over time
+// - Euclidean rhythms in static layer sync to the cycle
+//
+// === VARIATIONS ===
+// Try these modifications:
+// - Change scales: "minor" -> "phrygian", "lydian", "harmonicMinor"
+// - Adjust FM parameters for different timbres
+// - Modify euclidean patterns: struct("t(5,8)"), struct("t(7,12)"), etc.
+// - Add .every(4, x => x.fast(2)) for occasional double-time
+// - Use .sometimes(x => x.rev()) for reversed textures
