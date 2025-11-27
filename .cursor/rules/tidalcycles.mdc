@@ -1,0 +1,429 @@
+---
+description: Rules for working with TidalCycles live coding music composition language
+globs: ["*.tidal", "*.hs"]
+alwaysApply: true
+---
+
+# TidalCycles Live Coding Rules
+
+You are an expert in TidalCycles (Tidal), a domain-specific language for live coding music embedded in Haskell. Use the `@_docs` folder for comprehensive reference documentation.
+
+## Language Overview
+
+TidalCycles creates algorithmic patterns for music composition and live performance. It connects to SuperDirt (SuperCollider-based audio engine) via OSC to produce sound.
+
+### Architecture
+- **Tidal** (Haskell): Pattern language and composition
+- **SuperDirt** (SuperCollider): Audio synthesis and sample playback
+- Patterns are sent to SuperDirt via OSC on port 57120
+
+## Core Concepts
+
+### Patterns
+Patterns are the fundamental building blocks. Declare them using:
+```haskell
+d1 $ s "bd sn"           -- Classic pattern names d1-d16
+p "name" $ s "bd sn"     -- Named patterns
+p 123 $ s "bd sn"        -- Numbered patterns
+once $ s "bd"            -- Play once (not looping)
+```
+
+### The Cycle
+Everything in Tidal operates within cycles. One cycle is the fundamental time unit. Patterns repeat every cycle unless modified.
+
+### The `$` Operator
+The dollar sign `$` is function application with low precedence, allowing you to avoid parentheses:
+```haskell
+d1 $ fast 2 $ s "bd sn"  -- Equivalent to: d1 (fast 2 (s "bd sn"))
+```
+
+### The `#` Operator
+Combines control patterns (structure from left):
+```haskell
+d1 $ s "bd sn" # gain 0.8 # pan 0.5
+```
+
+## Mini-Notation (Essential)
+
+Mini-notation is written in quoted strings and is essential for pattern creation:
+
+| Symbol | Description | Example |
+|--------|-------------|---------|
+| `~` | Rest/silence | `"bd ~ sn ~"` |
+| `[ ]` | Group (subdivide) | `"[bd sd] hh"` |
+| `.` | Grouping shorthand | `"bd sd . hh hh"` |
+| `,` | Polyrhythm/stack | `"[bd, hh hh hh]"` |
+| `*` | Repeat faster | `"bd*4"` |
+| `/` | Slow down | `"bd/2"` |
+| `<>` | Alternate each cycle | `"bd <sn cp hh>"` |
+| `!` | Replicate | `"bd!3"` (creates 3 events) |
+| `_` | Elongate | `"bd _ _ sn"` |
+| `@` | Elongate with weight | `"bd@3 sn"` |
+| `?` | Random drop (50%) | `"bd? sn"` |
+| `?0.8` | Random drop (80%) | `"bd?0.8"` |
+| `\|` | Random choice | `"[bd\|sn\|hh]"` |
+| `:` | Sample select | `"bd:3"` (4th bd sample) |
+| `( )` | Euclidean rhythm | `"bd(3,8)"` |
+| `{ }` | Polymetric sequence | `"{bd sd, cp cp cp}"` |
+| `%` | Numerical ratio | `"bd*4%2"` |
+
+### Euclidean Rhythms
+`(pulses, steps)` or `(pulses, steps, offset)`:
+```haskell
+d1 $ s "bd(3,8)"        -- 3 hits over 8 steps: tresillo
+d1 $ s "bd(5,8)"        -- Cuban cinquillo
+d1 $ s "bd(3,8,2)"      -- With rotation offset
+```
+
+### Note/Pitch Notation
+```haskell
+d1 $ note "c4 e4 g4" # s "superpiano"    -- Note names
+d1 $ n "0 4 7" # s "superpiano"           -- Semitones from root
+d1 $ note "c'maj" # s "superpiano"        -- Chord (C major)
+d1 $ note "c'min7'o" # s "superpiano"     -- Minor 7th, open voicing
+```
+
+## Time Functions
+
+### Speed Control
+```haskell
+fast 2 $ s "bd sn"       -- Double speed
+slow 2 $ s "bd sn"       -- Half speed
+hurry 2 $ s "bd sn"      -- Fast + pitch up
+rev $ s "bd sn hh cp"    -- Reverse pattern
+```
+
+### Shifting
+```haskell
+rotL 0.25 $ s "bd sn"    -- Shift left by 1/4 cycle
+rotR 0.25 $ s "bd sn"    -- Shift right
+off 0.125 (|+ n 7) pat   -- Layer offset copy
+press $ s "bd sn"        -- Syncopate (delay half slot)
+```
+
+### Zooming
+```haskell
+zoom (0.25, 0.75) pat    -- Play portion of pattern
+compress (0.25, 0.75) pat -- Squeeze into timespan
+within (0, 0.5) (fast 2) pat -- Apply to portion
+```
+
+## Control Functions & Effects
+
+### Sound Selection
+```haskell
+s "bd"                   -- Sample/synth name
+sound "bd"               -- Alias for s
+n 3                      -- Sample number in folder
+```
+
+### Amplitude
+```haskell
+gain 1.2                 -- Volume (power function, default 1)
+amp 0.4                  -- Volume (linear, default 0.4)
+```
+
+### Filters
+```haskell
+lpf 1000                 -- Low-pass filter (Hz)
+lpq 0.5                  -- Low-pass resonance (0-1)
+hpf 500                  -- High-pass filter
+hpq 0.3                  -- High-pass resonance
+bpf 1000                 -- Band-pass filter
+bpq 0.5                  -- Band-pass resonance
+vowel "a e i o u"        -- Formant filter
+djf 0.5                  -- DJ filter (0-1)
+```
+
+### Spatial
+```haskell
+pan 0.5                  -- Stereo position (0=L, 1=R)
+room 0.5                 -- Reverb room size
+size 0.8                 -- Reverb size/depth (sz)
+dry 0.5                  -- Dry signal amount
+delay 0.5                -- Delay wet/dry
+delaytime 0.25           -- Delay time (delayt)
+delayfeedback 0.5        -- Delay feedback (delayfb)
+```
+
+### Distortion & Character
+```haskell
+shape 0.5                -- Waveshaping (0-1, loud!)
+crush 8                  -- Bitcrusher (1=harsh, 16=subtle)
+distort 0.3              -- Distortion
+triode 0.5               -- Tube-like distortion
+squiz 2                  -- Weird pitch/filter effect
+```
+
+### Envelope
+```haskell
+attack 0.01              -- Attack time (att)
+hold 0.5                 -- Hold time
+release 0.5              -- Release time (rel)
+legato 1                 -- Note overlap amount
+sustain 1                -- Overall envelope timescale
+```
+
+### Sample Manipulation
+```haskell
+speed 2                  -- Playback speed (affects pitch)
+begin 0.25               -- Start point (0-1)
+end 0.75                 -- End point (0-1)
+accelerate 1             -- Pitch glide
+unit "c"                 -- Speed unit: r(ate)/c(ycle)/s(econds)
+```
+
+## Built-in Synthesizers
+
+SuperDirt includes many synthesizers:
+```haskell
+-- Subtractive
+d1 $ s "supersquare" # n "c4"   -- Moog-style square
+d1 $ s "supersaw"               -- Detuned saws
+d1 $ s "superpwm"               -- Pulse width mod
+
+-- Physical Modeling
+d1 $ s "superpiano"             -- Piano
+d1 $ s "supermandolin"          -- String
+d1 $ s "supervibe"              -- Vibraphone
+d1 $ s "superhammond"           -- Organ
+
+-- FM Synthesis
+d1 $ s "superfm"                -- DX7-style FM
+
+-- Drums
+d1 $ s "superkick"              -- Kick drum
+d1 $ s "supersnare"             -- Snare
+d1 $ s "superhat"               -- Hi-hat
+d1 $ s "super808"               -- 808-style kick
+```
+
+## Oscillators (Continuous Patterns)
+
+Oscillators range 0-1 and need structure from another pattern:
+```haskell
+d1 $ s "bd*8" # pan sine         -- Sine wave
+d1 $ s "bd*8" # pan cosine       -- Cosine
+d1 $ s "bd*8" # pan tri          -- Triangle
+d1 $ s "bd*8" # pan saw          -- Sawtooth
+d1 $ s "bd*8" # pan isaw         -- Inverted saw
+d1 $ s "bd*8" # pan square       -- Square wave
+d1 $ s "bd*8" # pan rand         -- Random
+d1 $ s "bd*8" # n (irand 8)      -- Random integer 0-7
+```
+
+### Scaling Oscillators
+```haskell
+d1 $ s "bd*8" # lpf (range 200 5000 sine)  -- Scale to 200-5000
+```
+
+## Randomness Functions
+
+```haskell
+rand                      -- Continuous random 0-1
+irand 8                   -- Random integer 0-7
+perlin                    -- Smooth Perlin noise
+choose [0,2,4,7]          -- Random from list
+wchoose [(0,0.5),(7,0.5)] -- Weighted choice
+cycleChoose [0,2,4]       -- Choose once per cycle
+```
+
+### Sometimes Family
+```haskell
+sometimes f pat           -- Apply 50% of events
+often f pat               -- 75%
+rarely f pat              -- 25%
+almostAlways f pat        -- 90%
+almostNever f pat         -- 10%
+sometimesBy 0.3 f pat     -- Custom probability
+someCycles f pat          -- Apply to 50% of cycles
+```
+
+## Conditional Functions
+
+### Every
+```haskell
+every 3 (fast 2) pat           -- Every 3rd cycle
+every 4 rev pat                -- Every 4th cycle, reverse
+foldEvery [3,5] (|+ n 7) pat   -- Multiple periods
+```
+
+### When/Whenmod
+```haskell
+when ((== 0).(`mod` 2)) f pat  -- On even cycles
+whenmod 8 4 (fast 2) pat       -- Cycles 4-7 of each 8
+```
+
+### Pattern Conditionals
+```haskell
+struct "t ~ t t" pat      -- Apply boolean structure
+mask "t t ~ t" pat        -- Mask with boolean pattern
+sew "t f" pat1 pat2       -- Switch between patterns
+```
+
+## Pattern Combination
+
+### Stacking
+```haskell
+stack [pat1, pat2, pat3]  -- Play simultaneously
+d1 $ stack [
+  s "bd*4",
+  s "hh*8",
+  s "~ cp"
+]
+```
+
+### Sequencing
+```haskell
+cat [pat1, pat2, pat3]    -- One per cycle
+fastcat [p1, p2, p3]      -- All in one cycle
+slowcat [p1, p2, p3]      -- Alias for cat
+randcat [p1, p2, p3]      -- Random each cycle
+```
+
+### Layering
+```haskell
+superimpose f pat         -- Layer original + transformed
+off 0.125 f pat           -- Layer with time offset
+jux f pat                 -- Layer L/R stereo split
+juxBy 0.5 f pat           -- Partial stereo split
+```
+
+## Scales and Chords
+
+### Scales
+```haskell
+d1 $ n (scale "minor" "0 2 4 6") # s "superpiano"
+-- Available: major, minor, dorian, phrygian, lydian, mixolydian,
+-- locrian, harmonicMinor, melodicMinor, whole, diminished,
+-- pentatonic variants, and many more (use scaleList to see all)
+```
+
+### Chords
+```haskell
+d1 $ note "c'maj" # s "superpiano"      -- C major triad
+d1 $ note "c'min7" # s "superpiano"     -- C minor 7th
+d1 $ note "c'dom7'o" # s "superpiano"   -- Open voicing
+d1 $ note "c'maj'i2" # s "superpiano"   -- 2nd inversion
+```
+
+### Arpeggiation
+```haskell
+arp "up" $ note "c'maj"           -- Upward arpeggio
+arp "down" $ note "c'min7"        -- Downward
+arp "updown" $ note "c'dom9"      -- Up then down
+arpeggiate $ note "c'maj"         -- Spread over time
+rolled $ note "c'maj"             -- Guitar strum effect
+```
+
+## Transitions (Live Performance)
+
+```haskell
+xfade 1 $ s "arpy*8"              -- Crossfade to new pattern
+xfadeIn 1 4 $ s "arpy*8"          -- Crossfade over 4 cycles
+clutch 1 $ s "arpy*8"             -- Degrade/undegrade transition
+jumpIn 1 4 $ s "arpy*8"           -- Jump after 4 cycles
+anticipate 1 $ s "arpy*8"         -- Build-up transition
+```
+
+## Composition Functions
+
+### Long-form Structure
+```haskell
+-- seqP: Sequence patterns with start/end times
+d1 $ qtrigger $ seqP [
+  (0, 8, s "bd*4"),
+  (4, 12, s "hh*8"),
+  (8, 16, s "arpy*4")
+]
+
+-- ur: Pattern of patterns
+let pats = [("a", s "bd*4"), ("b", s "cp*2")]
+    fx = [("fast", fast 2)]
+in d1 $ ur 8 "a b:fast" pats fx
+```
+
+## Stopping Patterns
+
+```haskell
+d1 $ silence              -- Stop d1
+hush                      -- Stop all patterns
+panic                     -- Stop all + kill synths
+```
+
+## Best Practices
+
+### Code Style
+1. Use meaningful pattern names for complex compositions
+2. Align control parameters vertically for readability
+3. Comment sections of live sets with `--`
+4. Use `let...in` for reusable pattern fragments
+
+### Performance Tips
+1. Build patterns incrementally, testing as you go
+2. Use `once` to test samples before looping
+3. Keep `gain` reasonable (0.5-1.2) to avoid clipping
+4. Use `orbit` to separate effect chains
+5. Apply `hush` or `panic` if things get out of control
+
+### Pattern Building
+```haskell
+-- Good: Build complexity gradually
+d1 $ s "bd*4"
+d1 $ s "bd*4" # lpf 1000
+d1 $ every 4 (fast 2) $ s "bd*4" # lpf (range 400 4000 sine)
+
+-- Good: Layer from simple to complex
+d1 $ stack [
+  s "bd*4",                           -- Foundation
+  every 2 (fast 2) $ s "~ cp",        -- Accent
+  s "hh*8" # gain 0.7                 -- Texture
+]
+```
+
+### Common Patterns
+```haskell
+-- Four-on-the-floor
+d1 $ s "bd*4"
+
+-- Basic beat
+d1 $ s "bd ~ [~ bd] ~, ~ cp ~ cp, hh*8"
+
+-- Euclidean groove
+d1 $ s "[bd(3,8), hh(5,8), cp(2,8)]"
+
+-- Melodic sequence
+d1 $ n "0 3 5 7" # s "arpy" # lpf (slow 4 $ range 500 4000 saw)
+```
+
+## Time Shorthands
+
+Use these in pattern functions that accept time values:
+```
+w = 1       (whole cycle)
+h = 0.5     (half)
+q = 0.25    (quarter)
+e = 0.125   (eighth)
+s = 0.0625  (sixteenth)
+t = 1/3     (third)
+```
+
+Example: `d1 $ off "e" (|+ n 7) $ n "c e g" # s "superpiano"`
+
+## Documentation Reference
+
+Always consult `@_docs` for:
+- Complete function signatures and types
+- All available scales (`scaleList`)
+- All available chords (`chordList`)
+- Synthesizer parameters
+- Effect parameter ranges
+- Advanced Haskell integration
+
+## Error Prevention
+
+1. **Unbalanced brackets**: Mini-notation requires matching `[]`, `<>`, `{}`
+2. **Missing `$`**: Use `$` between function applications
+3. **Wrong operator**: `#` combines patterns (left structure), `|>`, `>|` choose structure
+4. **Silence issues**: Continuous patterns need structure - use `|>` not `>|` with oscillators
+5. **Sample not found**: Check sample folder names match exactly

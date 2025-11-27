@@ -1,0 +1,449 @@
+-- ╔══════════════════════════════════════════════════════════════════════════╗
+-- ║  GENERATIVE AMBIENT DRONE SYSTEM                                         ║
+-- ║  TidalCycles port of drone.js - layered FM synthesis & noise textures    ║
+-- ╚══════════════════════════════════════════════════════════════════════════╝
+
+-- Initialize: Set tempo slow and dreamy (original used 30-120 BPM drift)
+setcps (60/60/4)  -- Very slow cycle for drone work
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- CHORD PROGRESSIONS - Matching original drone.js tonalities
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Set 1: A#/D# tonality (Original Set)
+let chordSet1_drone = "<[0,7,12,15,19] [3,10,12,19,22] [5,12,15,22,24] [0,8,15,19,24]>"
+    chordSet1_bell = "<[0,7,12] [3,10,12] [5,12,15] [0,8,15]>"
+
+-- Set 2: F Major / D Minor tonality
+let chordSet2_drone = "<[5,12,17,21,24] [9,17,19,26,29] [0,7,12,16,19] [2,9,14,17,21]>"
+    chordSet2_bell = "<[5,12,17] [9,14,17] [0,4,7] [2,5,9]>"
+
+-- Set 3: C Major / A Minor tonality  
+let chordSet3_drone = "<[0,7,12,16,19] [9,16,21,24,28] [5,12,17,21,24] [7,14,19,23,26]>"
+    chordSet3_bell = "<[0,7,12] [9,12,16] [5,9,12] [7,11,14]>"
+
+-- Set 4: G Major / E Minor tonality
+let chordSet4_drone = "<[7,14,19,23,26] [4,11,16,19,23] [0,7,12,16,19] [2,9,14,18,21]>"
+    chordSet4_bell = "<[7,14,19] [4,7,11] [0,4,7] [2,6,9]>"
+
+-- Set 5: D Major / B Minor tonality
+let chordSet5_drone = "<[2,9,14,18,21] [11,18,23,26,30] [7,14,19,23,26] [9,16,21,25,28]>"
+    chordSet5_bell = "<[2,9,14] [11,14,18] [7,11,14] [9,13,16]>"
+
+-- Set 6: Ab Major / F Minor tonality
+let chordSet6_drone = "<[8,15,20,24,27] [5,12,17,20,24] [1,8,13,17,20] [10,17,22,26,29]>"
+    chordSet6_bell = "<[8,15,20] [5,8,12] [1,5,8] [10,14,17]>"
+
+-- Set 7: E Major / C# Minor tonality
+let chordSet7_drone = "<[4,11,16,20,23] [1,8,13,16,20] [9,16,21,25,28] [11,18,23,27,30]>"
+    chordSet7_bell = "<[4,11,16] [1,4,8] [9,13,16] [11,15,18]>"
+
+-- Microtonal Sets (using detuned notes for quarter-tone effects)
+let microChord1 = "<[0,4.5,7,11.5,14] [5,9.5,12,16.5,19] [7,11.5,14,18.5,21] [2,6.5,9,13.5,16]>"
+    microChord2 = "<[0,3.9,7.1,10.9,14] [5,8.9,12.1,15.9,19] [7,10.9,14.1,17.9,21] [2,5.9,9.1,12.9,16]>"
+
+-- Active chord selection (change these to switch progressions)
+let activeDroneChord = chordSet1_drone
+    activeBellChord = chordSet1_bell
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SCENE SYSTEM - Different sonic characters like original's scene array
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Scene 1: Soft & Wide - gentle envelopes, wide stereo
+let scene1_env = (# attack 3 # decay 1 # sustain 0.8 # release 5)
+    scene1_filt = (# lpq 0.15)
+    scene1_space = (# room 0.85 # size 0.95 # delay 0.4 # delayfeedback 0.5)
+    scene1_static = struct (euclid 5 16)
+    scene1 = scene1_env . scene1_filt . scene1_space
+
+-- Scene 2: Bright & Resonant - faster envelopes, more filter resonance
+let scene2_env = (# attack 1.5 # decay 0.5 # sustain 0.7 # release 3)
+    scene2_filt = (# lpq 0.35)
+    scene2_space = (# room 0.7 # size 0.88 # delay 0.6 # delayfeedback 0.65)
+    scene2_static = struct (euclid 7 16)
+    scene2 = scene2_env . scene2_filt . scene2_space
+
+-- Scene 3: Tight & Percussive - short envelopes, higher Q, more tremolo feel
+let scene3_env = (# attack 0.8 # decay 0.3 # sustain 0.6 # release 2)
+    scene3_filt = (# lpq 0.45)
+    scene3_space = (# room 0.5 # size 0.75 # delay 0.7 # delayfeedback 0.7)
+    scene3_static = struct (euclid 9 16)
+    scene3 = scene3_env . scene3_filt . scene3_space
+
+-- Active scene (change to switch sonic character)
+let activeScene = scene1
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- ACCENT PATTERNS - Velocity variations like original's accent arrays
+-- ════════════════════════════════════════════════════════════════════════════
+
+let accents1 = "1.0 0.85 1.2 0.9 0.8 1.15 0.95 0.75"
+    accents2 = "0.9 1.25 0.8 1.1 0.95 0.85 1.2 0.8"
+    accents3 = "1.2 0.8 0.95 1.1 0.85 1.0 0.75 1.15"
+    activeAccents = accents1
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- MODULATION HELPERS - Microtonal drift & variations
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Pitch drift (simulates original's microtonal variation ±50 cents)
+let driftPitch amt = (|+ note (slow 32 $ range (0-amt) amt perlin))
+    driftPitchWide = driftPitch 0.25   -- ~50 cents
+    driftPitchNarrow = driftPitch 0.1  -- ~20 cents
+
+-- Thicken sound with subtle detuning (like original's voice detune)
+let thicken = superimpose (|+ note 0.04) . superimpose (|+ note (-0.04))
+    thickenWide = superimpose (|+ note 0.08) . superimpose (|+ note (-0.08))
+
+-- Stereo widening
+let widen = jux (|* speed 1.002)
+    widenMore = jux (|* speed 1.005)
+
+-- Breathing dynamics
+let breathe rate = (# gain (slow rate $ range 0.4 0.85 sine))
+    breatheSlow = breathe 16
+    breatheFast = breathe 4
+
+-- Randomized timing (like original's timing variation)
+let humanize amt = (|+ nudge (range 0 amt rand))
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- LAYER 1: DEEP DRONE - FM synthesis with slow evolution
+-- ════════════════════════════════════════════════════════════════════════════
+
+d1 $ slow 8 
+   $ driftPitchNarrow
+   $ note activeDroneChord
+   |+ note "-24"  -- Low octave
+   # s "superfm"
+   # fmh (slow 16 $ range 0.3 0.8 sine)
+   # fmi (slow 24 $ range 0.5 2 sine)
+   # attack 3 # hold 4 # release 5
+   # lpf (slow 12 $ range 200 800 tri)
+   # lpq 0.2
+   # room 0.8 # size 0.95
+   # delay 0.4 # delaytime (1/3) # delayfeedback 0.5
+   # gain 0.65
+   # orbit 1
+   # pan (slow 7 sine)
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- LAYER 2: ETHEREAL BELLS - Higher register FM with distortion/bitcrush
+-- ════════════════════════════════════════════════════════════════════════════
+
+d2 $ slow 6
+   $ sometimesBy 0.3 (|+ note "7")
+   $ driftPitchWide
+   $ note activeBellChord
+   |+ note "12"  -- Higher octave
+   # s "superfm"
+   # fmh (slow 11 $ range 1.5 3.5 sine)
+   # fmi (slow 13 $ range 4 12 tri)
+   # attack 0.02 # decay 0.3 # sustain 0.6 # release 3
+   # lpf (slow 8 $ range 2000 8000 sine)
+   # hpf 400
+   # shape 0.2  -- subtle waveshaping/distortion
+   # crush 12   -- light bitcrushing
+   # room 0.9 # size 0.98 # dry 0.3
+   # delay 0.7 # delaytime (3/8) # delayfeedback 0.7
+   # gain 0.5
+   # orbit 2
+   # pan (slow 9 $ range 0.2 0.8 cosine)
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- LAYER 3: CHOIR/PAD - Formant-like filtered pads (supersquare = PWM-like)
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Choir chord sets (different "vowel" characters via filter frequencies)
+let choirVowelAh = (# lpf (slow 20 $ range 600 1200 sine))   -- "ah" formant ~600-1040 Hz
+    choirVowelOo = (# lpf (slow 20 $ range 300 900 sine))    -- "oo" formant ~300-870 Hz
+    choirVowelEh = (# lpf (slow 20 $ range 530 1900 sine))   -- "eh" formant ~530-1840 Hz
+
+d3 $ slow 10
+   $ driftPitchNarrow
+   $ note activeDroneChord  -- Shares harmony with drone
+   |+ note "-12"
+   # s "supersquare"
+   # voice (slow 16 $ range 0.3 0.8 tri)  -- PWM width modulation
+   # attack 0.5 # decay 0.8 # sustain 0.7 # release 4
+   # lpf (slow 20 $ range 400 2000 sine)  -- formant-like filter sweep
+   # lpq (slow 7 $ range 0.1 0.4 tri)
+   # hpf 80
+   # room 0.85 # size 0.92
+   # delay 0.3 # delaytime (1/2) # delayfeedback 0.4
+   # gain 0.4
+   # orbit 3
+   # pan (slow 13 sine)
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- LAYER 4: STATIC/NOISE TEXTURE - Euclidean rhythms like the original engine
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Main 16-step Euclidean static (5 fills like original pat16)
+d4 $ every 4 (fast 2)
+   $ every 3 (# speed (range 0.5 1.5 rand))
+   $ struct (euclid 5 16)
+   $ s "hh:2"
+   # hpf (slow 8 $ range 2000 8000 saw)
+   # lpf (slow 6 $ range 4000 16000 tri)
+   # crush (slow 12 $ range 4 12 sine)
+   # shape 0.3
+   # gain (slow 4 $ range 0.15 0.35 $ (*) <$> (pure activeAccents) <*> rand)
+   # pan (fast 2 $ range 0.1 0.9 rand)
+   # room 0.3 # size 0.5
+   # orbit 4
+
+-- 12-step polymetric layer (4 fills like original pat12)
+d5 $ every 5 (# speed 1.5)
+   $ struct (euclid 4 12)
+   $ s "hh:3"
+   # hpf 3000
+   # lpf (slow 5 $ range 6000 12000 perlin)
+   # crush 6
+   # gain 0.2
+   # pan (slow 3 rand)
+   # room 0.4 # size 0.6
+   # orbit 4
+
+-- 7-step polymetric layer (3 fills like original pat7)
+d6 $ struct (euclid 3 7)
+   $ s "hh:5"
+   # hpf 4000
+   # lpf 10000
+   # gain 0.25
+   # pan (fast 1.5 rand)
+   # delay 0.5 # delaytime (1/8) # delayfeedback 0.3
+   # orbit 4
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- LAYER 5: SUB BASS DRONE - Foundation layer
+-- ════════════════════════════════════════════════════════════════════════════
+
+d7 $ slow 16
+   $ note "<0 -5 2 -3>"
+   |+ note "-24"
+   # s "supersaw"
+   # voice 0.1  -- very little detune for clean sub
+   # attack 4 # release 8
+   # lpf 120
+   # gain 0.6
+   # room 0.3 # size 0.9
+   # orbit 5
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- LAYER 6: SCREAM BURSTS - Occasional intense choir moments
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Scream burst layer (10% probability like original)
+d8 $ sometimesBy 0.1 id $ rarely id
+   $ slow 12
+   $ note "[~ ~ ~ 12] [~ ~ 7 ~] [~ 4 ~ ~] [~ ~ ~ ~]"
+   |+ note "12"
+   # s "supersquare"
+   # voice 0.9
+   # attack 0.05 # decay 0.2 # sustain 0.3 # release 0.8
+   # lpf 4000 # hpf 1000
+   # shape 0.5
+   # room 0.7 # size 0.85
+   # gain 0.55
+   # orbit 3
+   # pan rand
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- LIVE PERFORMANCE: CHORD PROGRESSION SWITCHERS
+-- Evaluate one of these to change the harmonic content
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Switch to Set 1: A#/D# (original)
+let switchSet1 = do
+      d1 $ slow 8 $ driftPitchNarrow $ note chordSet1_drone |+ note "-24" 
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 3 # hold 4 # release 5 # lpf (slow 12 $ range 200 800 tri) # lpq 0.2
+         # room 0.8 # size 0.95 # delay 0.4 # delaytime (1/3) # delayfeedback 0.5
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+      d2 $ slow 6 $ sometimesBy 0.3 (|+ note "7") $ driftPitchWide $ note chordSet1_bell |+ note "12"
+         # s "superfm" # fmh (slow 11 $ range 1.5 3.5 sine) # fmi (slow 13 $ range 4 12 tri)
+         # attack 0.02 # decay 0.3 # sustain 0.6 # release 3
+         # lpf (slow 8 $ range 2000 8000 sine) # hpf 400 # shape 0.2 # crush 12
+         # room 0.9 # size 0.98 # dry 0.3 # delay 0.7 # delaytime (3/8) # delayfeedback 0.7
+         # gain 0.5 # orbit 2 # pan (slow 9 $ range 0.2 0.8 cosine)
+
+-- Switch to Set 3: C Major / A Minor
+let switchSet3 = do
+      d1 $ slow 8 $ driftPitchNarrow $ note chordSet3_drone |+ note "-24"
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 3 # hold 4 # release 5 # lpf (slow 12 $ range 200 800 tri) # lpq 0.2
+         # room 0.8 # size 0.95 # delay 0.4 # delaytime (1/3) # delayfeedback 0.5
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+      d2 $ slow 6 $ sometimesBy 0.3 (|+ note "7") $ driftPitchWide $ note chordSet3_bell |+ note "12"
+         # s "superfm" # fmh (slow 11 $ range 1.5 3.5 sine) # fmi (slow 13 $ range 4 12 tri)
+         # attack 0.02 # decay 0.3 # sustain 0.6 # release 3
+         # lpf (slow 8 $ range 2000 8000 sine) # hpf 400 # shape 0.2 # crush 12
+         # room 0.9 # size 0.98 # dry 0.3 # delay 0.7 # delaytime (3/8) # delayfeedback 0.7
+         # gain 0.5 # orbit 2 # pan (slow 9 $ range 0.2 0.8 cosine)
+
+-- Switch to Set 5: D Major / B Minor
+let switchSet5 = do
+      d1 $ slow 8 $ driftPitchNarrow $ note chordSet5_drone |+ note "-24"
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 3 # hold 4 # release 5 # lpf (slow 12 $ range 200 800 tri) # lpq 0.2
+         # room 0.8 # size 0.95 # delay 0.4 # delaytime (1/3) # delayfeedback 0.5
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+      d2 $ slow 6 $ sometimesBy 0.3 (|+ note "7") $ driftPitchWide $ note chordSet5_bell |+ note "12"
+         # s "superfm" # fmh (slow 11 $ range 1.5 3.5 sine) # fmi (slow 13 $ range 4 12 tri)
+         # attack 0.02 # decay 0.3 # sustain 0.6 # release 3
+         # lpf (slow 8 $ range 2000 8000 sine) # hpf 400 # shape 0.2 # crush 12
+         # room 0.9 # size 0.98 # dry 0.3 # delay 0.7 # delaytime (3/8) # delayfeedback 0.7
+         # gain 0.5 # orbit 2 # pan (slow 9 $ range 0.2 0.8 cosine)
+
+-- Microtonal variation
+let switchMicro = do
+      d1 $ slow 8 $ driftPitchWide $ note microChord1 |+ note "-24"
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 3 # hold 4 # release 5 # lpf (slow 12 $ range 200 800 tri) # lpq 0.2
+         # room 0.8 # size 0.95 # delay 0.4 # delaytime (1/3) # delayfeedback 0.5
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- LIVE PERFORMANCE: SCENE SWITCHERS
+-- Evaluate to change the overall sonic character
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Apply Scene 1: Soft & Wide
+let applyScene1 = do
+      d1 $ slow 8 $ driftPitchNarrow $ note activeDroneChord |+ note "-24"
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 3 # decay 1 # sustain 0.8 # release 5
+         # lpf (slow 12 $ range 200 800 tri) # lpq 0.15
+         # room 0.85 # size 0.95 # delay 0.4 # delayfeedback 0.5
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+      d4 $ every 4 (fast 2) $ struct (euclid 5 16) $ s "hh:2"
+         # hpf (slow 8 $ range 2000 8000 saw) # lpf (slow 6 $ range 4000 16000 tri)
+         # crush (slow 12 $ range 4 12 sine) # shape 0.3
+         # gain (slow 4 $ range 0.15 0.35 rand) # pan (fast 2 $ range 0.1 0.9 rand)
+         # room 0.3 # size 0.5 # orbit 4
+
+-- Apply Scene 2: Bright & Resonant
+let applyScene2 = do
+      d1 $ slow 8 $ driftPitchNarrow $ note activeDroneChord |+ note "-24"
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 1.5 # decay 0.5 # sustain 0.7 # release 3
+         # lpf (slow 12 $ range 400 1200 tri) # lpq 0.35
+         # room 0.7 # size 0.88 # delay 0.6 # delayfeedback 0.65
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+      d4 $ every 4 (fast 2) $ struct (euclid 7 16) $ s "hh:2"
+         # hpf (slow 8 $ range 2000 8000 saw) # lpf (slow 6 $ range 4000 16000 tri)
+         # crush (slow 12 $ range 4 12 sine) # shape 0.3
+         # gain (slow 4 $ range 0.2 0.4 rand) # pan (fast 2 $ range 0.1 0.9 rand)
+         # room 0.4 # size 0.6 # orbit 4
+
+-- Apply Scene 3: Tight & Percussive  
+let applyScene3 = do
+      d1 $ slow 6 $ driftPitchNarrow $ note activeDroneChord |+ note "-24"
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 0.8 # decay 0.3 # sustain 0.6 # release 2
+         # lpf (slow 12 $ range 600 1600 tri) # lpq 0.45
+         # room 0.5 # size 0.75 # delay 0.7 # delayfeedback 0.7
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+      d4 $ every 4 (fast 2) $ struct (euclid 9 16) $ s "hh:2"
+         # hpf (slow 8 $ range 2000 8000 saw) # lpf (slow 6 $ range 4000 16000 tri)
+         # crush (slow 12 $ range 4 12 sine) # shape 0.4
+         # gain (slow 4 $ range 0.25 0.5 rand) # pan (fast 2 $ range 0.1 0.9 rand)
+         # room 0.3 # size 0.5 # orbit 4
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- TEMPO DRIFT - Simulates original's dynamic BPM (30-120 range)
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Very slow tempo (~15 BPM effective)
+let tempoVerySlow = setcps (30/60/4)
+
+-- Slow tempo (~30 BPM effective)
+let tempoSlow = setcps (60/60/4)
+
+-- Medium tempo (~60 BPM effective)  
+let tempoMedium = setcps (120/60/4)
+
+-- Fast tempo (~90 BPM effective)
+let tempoFast = setcps (180/60/4)
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- TRANSITIONS - Smooth crossfades between patterns
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Use xfade for smooth transitions:
+-- xfade 1 $ slow 8 $ note chordSet3_drone ...
+
+-- Or anticipate for build-up transitions:
+-- anticipate 1 $ slow 8 $ note chordSet3_drone ...
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- FULL COMPOSITION STARTERS - Quick start presets
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Minimal drone start (just foundation)
+let startMinimal = do
+      setcps (60/60/4)
+      d1 $ slow 8 $ driftPitchNarrow $ note chordSet1_drone |+ note "-24"
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 3 # hold 4 # release 5 # lpf (slow 12 $ range 200 800 tri) # lpq 0.2
+         # room 0.8 # size 0.95 # delay 0.4 # delaytime (1/3) # delayfeedback 0.5
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+      d7 $ slow 16 $ note "<0 -5 2 -3>" |+ note "-24"
+         # s "supersaw" # voice 0.1 # attack 4 # release 8 # lpf 120
+         # gain 0.6 # room 0.3 # size 0.9 # orbit 5
+
+-- Full ambient drone (all layers)
+let startFull = do
+      setcps (60/60/4)
+      -- Layer 1: Deep drone
+      d1 $ slow 8 $ driftPitchNarrow $ note chordSet1_drone |+ note "-24"
+         # s "superfm" # fmh (slow 16 $ range 0.3 0.8 sine) # fmi (slow 24 $ range 0.5 2 sine)
+         # attack 3 # hold 4 # release 5 # lpf (slow 12 $ range 200 800 tri) # lpq 0.2
+         # room 0.8 # size 0.95 # delay 0.4 # delaytime (1/3) # delayfeedback 0.5
+         # gain 0.65 # orbit 1 # pan (slow 7 sine)
+      -- Layer 2: Bells
+      d2 $ slow 6 $ sometimesBy 0.3 (|+ note "7") $ driftPitchWide $ note chordSet1_bell |+ note "12"
+         # s "superfm" # fmh (slow 11 $ range 1.5 3.5 sine) # fmi (slow 13 $ range 4 12 tri)
+         # attack 0.02 # decay 0.3 # sustain 0.6 # release 3
+         # lpf (slow 8 $ range 2000 8000 sine) # hpf 400 # shape 0.2 # crush 12
+         # room 0.9 # size 0.98 # dry 0.3 # delay 0.7 # delaytime (3/8) # delayfeedback 0.7
+         # gain 0.5 # orbit 2 # pan (slow 9 $ range 0.2 0.8 cosine)
+      -- Layer 3: Choir pad
+      d3 $ slow 10 $ driftPitchNarrow $ note chordSet1_drone |+ note "-12"
+         # s "supersquare" # voice (slow 16 $ range 0.3 0.8 tri)
+         # attack 0.5 # decay 0.8 # sustain 0.7 # release 4
+         # lpf (slow 20 $ range 400 2000 sine) # lpq (slow 7 $ range 0.1 0.4 tri) # hpf 80
+         # room 0.85 # size 0.92 # delay 0.3 # delaytime (1/2) # delayfeedback 0.4
+         # gain 0.4 # orbit 3 # pan (slow 13 sine)
+      -- Layer 4-6: Static
+      d4 $ every 4 (fast 2) $ every 3 (# speed (range 0.5 1.5 rand)) $ struct (euclid 5 16) $ s "hh:2"
+         # hpf (slow 8 $ range 2000 8000 saw) # lpf (slow 6 $ range 4000 16000 tri)
+         # crush (slow 12 $ range 4 12 sine) # shape 0.3
+         # gain (slow 4 $ range 0.15 0.35 rand) # pan (fast 2 $ range 0.1 0.9 rand)
+         # room 0.3 # size 0.5 # orbit 4
+      d5 $ every 5 (# speed 1.5) $ struct (euclid 4 12) $ s "hh:3"
+         # hpf 3000 # lpf (slow 5 $ range 6000 12000 perlin) # crush 6
+         # gain 0.2 # pan (slow 3 rand) # room 0.4 # size 0.6 # orbit 4
+      d6 $ struct (euclid 3 7) $ s "hh:5"
+         # hpf 4000 # lpf 10000 # gain 0.25 # pan (fast 1.5 rand)
+         # delay 0.5 # delaytime (1/8) # delayfeedback 0.3 # orbit 4
+      -- Layer 7: Sub bass
+      d7 $ slow 16 $ note "<0 -5 2 -3>" |+ note "-24"
+         # s "supersaw" # voice 0.1 # attack 4 # release 8 # lpf 120
+         # gain 0.6 # room 0.3 # size 0.9 # orbit 5
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- STOP COMMANDS
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- d1 $ silence
+-- d2 $ silence  
+-- d3 $ silence
+-- d4 $ silence
+-- d5 $ silence
+-- d6 $ silence
+-- d7 $ silence
+-- d8 $ silence
+-- hush
