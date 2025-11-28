@@ -239,7 +239,7 @@ stack(
 
 // === GLOBAL EFFECTS ===
 // Apply master processing to the entire stack
-.postgain(0.7) // Master volume
+.postgain(0.1) // Master volume
 .compressor("-18:3:10:0.006:0.25") // Gentle compression
 
 // === PERFORMANCE NOTES ===
