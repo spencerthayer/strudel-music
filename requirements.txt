@@ -1,2 +1,5 @@
 supriya
 jupyter
+typer
+sounddevice
+pandas
