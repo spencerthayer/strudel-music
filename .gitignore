@@ -166,3 +166,4 @@ samples/
 
 # SuperCollider
 *.scsyndef
+.venv
