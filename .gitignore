@@ -167,3 +167,5 @@ samples/
 # SuperCollider
 *.scsyndef
 .venv
+
+supriya.config.yaml

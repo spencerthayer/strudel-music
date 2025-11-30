@@ -1,10 +1,15 @@
+import sys
 import time
+
 import supriya
 from supriya import Envelope, synthdef
+from supriya.exceptions import ServerCannotBoot
 from supriya.ugens import EnvGen, Out, SinOsc
 from rich.console import Console
 from rich.panel import Panel
 from rich.tree import Tree
+
+from .config import CONFIG, CONFIG_PATH
 
 
 def _explain():
@@ -75,15 +80,38 @@ def _explain():
 
 
 def hello(explain: bool = False):
+    console = Console()
     if explain:
         _explain()
         return
 
     # Construct a Supriya server
-    server = supriya.Server()
 
     # Boot the server - Start a SCSynth process
-    server.boot()
+    # Use configuration options if available
+    if CONFIG.get("audio"):
+        console.print(f"Booting server with audio configuration from {CONFIG_PATH}.")
+        console.print(f"Attempting Configuration:", CONFIG["audio"])
+
+        options = supriya.Options(**CONFIG["audio"])
+        try:
+
+            server = supriya.Server()
+            server.boot(options=options)
+        except ServerCannotBoot:
+            console.print(
+                f"[bold red]Failed to boot server with provided options, doublecheck your configuration in {CONFIG_PATH}.[/bold red]"
+            )
+            console.print(
+                "[bold red]For more information try running 'supriya_music info devices' (`python -m supriya_music info devices`) to list available audio devices.[/bold red]"
+            )
+            sys.exit(1)
+    else:
+        console.print(
+            "No audio configuration found, booting server with default options."
+        )
+        server = supriya.Server()
+        server.boot()
 
     # Define a simple sine wave synthdef
     @synthdef()

@@ -1,0 +1,7 @@
+audio:
+  input_device: "MacBook Pro Microphone"
+  output_device: "Bose AE2 SoundLink"
+  input_bus_channel_count: 1
+  output_bus_channel_count: 2
+  sample_rate: 48000
+  buffer_count: 16384
